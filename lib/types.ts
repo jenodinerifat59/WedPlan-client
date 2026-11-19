@@ -13,6 +13,7 @@ export type Role = "customer" | "vendor" | "admin";
 export type SubscriptionPlan = "free" | "premium";
 export type ServiceStatus = "pending" | "approved" | "rejected";
 export type BookingStatus = "pending" | "accepted" | "rejected" | "cancelled";
+export type ServiceSort = "newest" | "price_asc" | "price_desc";
 export type TransactionStatus = "pending" | "completed" | "failed" | "refunded";
 
 export interface User {
@@ -90,7 +91,7 @@ export interface ServiceFilters {
   q?: string;
   category?: ServiceCategory | "all";
   location?: string;
-  sort?: "price_asc" | "price_desc" | "newest";
+  sort?: ServiceSort;
   page?: number;
   limit?: number;
   status?: ServiceStatus | "all";
