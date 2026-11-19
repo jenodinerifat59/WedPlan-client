@@ -24,6 +24,8 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** Fixture-mode only: switch the previewed role without a real session. */
+  previewRole: (role: Role) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -105,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   }, [sessionRecord]);
 
-  const user = sessionUser ?? mockUser;
+  const user = (USE_MOCK ? mockUser : null) ?? sessionUser;
 
   const isLoading = Boolean(isPending) || !mockReady;
 
@@ -133,6 +135,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [router]);
 
+  const previewRole = useCallback(async (role: Role) => {
+    if (!USE_MOCK) return;
+
+    const { getMockSessionUser, setMockRole } = await import("@/lib/mock");
+    setMockRole(role);
+    const stored = getMockSessionUser();
+    setMockUser(stored ? { ...stored, isMock: true } : null);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -140,8 +151,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(user),
       refresh,
       signOut,
+      previewRole,
     }),
-    [user, isLoading, refresh, signOut],
+    [user, isLoading, refresh, signOut, previewRole],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

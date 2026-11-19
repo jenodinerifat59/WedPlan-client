@@ -5,6 +5,9 @@ import type {
   CreateServiceInput,
   Service,
   ServiceFilters,
+  ServiceStatus,
+  Transaction,
+  User,
 } from "@/lib/types";
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
@@ -368,6 +371,41 @@ export const subscriptionApi = {
   checkout() {
     return apiFetch<{ url: string }>("/subscription/checkout", {
       method: "POST",
+      auth: true,
+    });
+  },
+};
+
+export const adminApi = {
+  users() {
+    return apiFetch<ApiListResponse<User>>("/admin/users", { auth: true });
+  },
+  blockUser(id: string, isBlocked: boolean) {
+    return apiFetch<User>(`/admin/users/${encodeURIComponent(id)}/block`, {
+      method: "PATCH",
+      body: { isBlocked },
+      auth: true,
+    });
+  },
+  services() {
+    return apiFetch<ApiListResponse<Service>>("/admin/services", {
+      auth: true,
+    });
+  },
+  setServiceStatus(id: string, status: ServiceStatus) {
+    return apiFetch<Service>(
+      `/admin/services/${encodeURIComponent(id)}/status`,
+      { method: "PATCH", body: { status }, auth: true },
+    );
+  },
+  removeService(id: string) {
+    return apiFetch<{ success: boolean }>(
+      `/admin/services/${encodeURIComponent(id)}`,
+      { method: "DELETE", auth: true },
+    );
+  },
+  transactions() {
+    return apiFetch<ApiListResponse<Transaction>>("/admin/transactions", {
       auth: true,
     });
   },

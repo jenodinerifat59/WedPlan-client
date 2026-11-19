@@ -45,6 +45,8 @@ const transactions: Transaction[] = mockTransactions.map((transaction) => ({
   ...transaction,
 }));
 
+const blockedOverrides = new Map<string, boolean>();
+
 const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -89,6 +91,12 @@ export function getMockSessionUser(): User | null {
 
 function currentUser(): User {
   return mockUsers[getMockRole()];
+}
+
+function requireAdmin() {
+  if (currentUser().role !== "admin") {
+    throw new MockApiError("Administrator access is required.", 403);
+  }
 }
 
 function withVendor(service: Service): Service {
@@ -207,7 +215,10 @@ function directoryUsers(): User[] {
   const directory = new Map<string, User>();
 
   for (const user of Object.values(mockUsers)) {
-    directory.set(user.id, user);
+    directory.set(user.id, {
+      ...user,
+      isBlocked: blockedOverrides.get(user.id) ?? user.isBlocked,
+    });
   }
 
   for (const [id, vendor] of Object.entries(mockVendors)) {
@@ -218,7 +229,7 @@ function directoryUsers(): User[] {
       email: vendor.email ?? "",
       image: vendor.image,
       role: "vendor",
-      isBlocked: false,
+      isBlocked: blockedOverrides.get(id) ?? false,
       businessName: vendor.businessName,
       subscriptionPlan: "free",
     });
@@ -514,6 +525,88 @@ export async function mockRequest<T>(
     return withRelations(booking) as T;
   }
 
+  const adminUserBlockMatch = rawPath.match(
+    /^\/admin\/users\/([^/]+)\/block$/,
+  );
+
+  if (method === "PATCH" && adminUserBlockMatch) {
+    requireAdmin();
+
+    const id = decodeURIComponent(adminUserBlockMatch[1]);
+
+    if (id === currentUser().id) {
+      throw new MockApiError(
+        "You cannot block the administrator account you are signed in with.",
+        400,
+      );
+    }
+
+    const user = directoryUsers().find((item) => item.id === id);
+
+    if (!user) {
+      throw new MockApiError("This user does not exist.", 404);
+    }
+
+    const isBlocked =
+      (options.body as { isBlocked?: boolean } | undefined)?.isBlocked === true;
+
+    blockedOverrides.set(id, isBlocked);
+
+    return { ...user, isBlocked } as T;
+  }
+
+  const adminServiceStatusMatch = rawPath.match(
+    /^\/admin\/services\/([^/]+)\/status$/,
+  );
+
+  if (method === "PATCH" && adminServiceStatusMatch) {
+    requireAdmin();
+
+    const id = decodeURIComponent(adminServiceStatusMatch[1]);
+    const service = services.find((item) => item.id === id);
+
+    if (!service) {
+      throw new MockApiError("This service does not exist.", 404);
+    }
+
+    const status = (options.body as { status?: string } | undefined)?.status;
+
+    if (status !== "approved" && status !== "rejected" && status !== "pending") {
+      throw new MockApiError(
+        "Choose approved, rejected, or pending for the service status.",
+        400,
+      );
+    }
+
+    service.status = status;
+
+    if (status === "approved" && !service.images.length) {
+      throw new MockApiError(
+        "A service needs at least one photo before approval.",
+        400,
+      );
+    }
+
+    return withVendor(service) as T;
+  }
+
+  const adminServiceMatch = rawPath.match(/^\/admin\/services\/([^/]+)$/);
+
+  if (method === "DELETE" && adminServiceMatch) {
+    requireAdmin();
+
+    const id = decodeURIComponent(adminServiceMatch[1]);
+    const index = services.findIndex((item) => item.id === id);
+
+    if (index === -1) {
+      throw new MockApiError("This service does not exist.", 404);
+    }
+
+    services.splice(index, 1);
+
+    return { success: true } as T;
+  }
+
   if (method === "GET") {
     if (rawPath === "/services") {
       return listServices(path, options.query) as T;
@@ -574,15 +667,18 @@ export async function mockRequest<T>(
     }
 
     if (rawPath === "/admin/stats") {
+      requireAdmin();
       return adminStats() as T;
     }
 
     if (rawPath === "/admin/users") {
+      requireAdmin();
       const users = directoryUsers();
       return { data: users, total: users.length } as T;
     }
 
     if (rawPath === "/admin/services") {
+      requireAdmin();
       return {
         data: services.map(withVendor),
         total: services.length,
@@ -590,6 +686,7 @@ export async function mockRequest<T>(
     }
 
     if (rawPath === "/admin/transactions") {
+      requireAdmin();
       return {
         data: transactions.map((transaction) => ({
           ...transaction,

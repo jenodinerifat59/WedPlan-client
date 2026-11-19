@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { USE_MOCK } from "@/lib/api";
 import { getInitials } from "@/lib/format";
 import type { Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -133,7 +134,7 @@ function SidebarContent({
 }: {
   onNavigate?: () => void;
 }) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, previewRole } = useAuth();
 
   if (!user) return null;
 
@@ -177,6 +178,35 @@ function SidebarContent({
       </nav>
 
       <div className="border-t p-3">
+        {USE_MOCK ? (
+          <div className="mb-3 rounded-xl border border-dashed border-border p-2.5">
+            <p className="px-0.5 pb-2 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+              Dev preview
+            </p>
+            <div className="grid grid-cols-3 gap-1">
+              {(["customer", "vendor", "admin"] as const).map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => {
+                    onNavigate?.();
+                    void previewRole(role);
+                  }}
+                  aria-pressed={user.role === role}
+                  className={cn(
+                    "rounded-lg border px-1 py-1 text-[11px] font-medium capitalize transition-colors",
+                    user.role === role
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <Button
           variant="ghost"
           className="w-full justify-start text-muted-foreground hover:text-foreground"
