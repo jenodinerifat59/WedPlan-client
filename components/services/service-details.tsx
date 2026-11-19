@@ -19,6 +19,7 @@ import { formatCurrency } from "@/lib/format";
 import type { Service } from "@/lib/types";
 import { ErrorState } from "@/components/common/error-state";
 import { SectionHeading } from "@/components/common/section-heading";
+import { BookingForm } from "@/components/services/booking-form";
 import { ServiceCard } from "@/components/services/service-card";
 import { ServiceGallery } from "@/components/services/service-gallery";
 import { Badge } from "@/components/ui/badge";
@@ -327,10 +328,7 @@ export function ServiceDetails({ serviceId }: { serviceId: string }) {
             </p>
           </div>
 
-          <div
-            id="booking"
-            className="mt-6 scroll-mt-28 rounded-2xl border border-dashed border-border bg-secondary/20 p-5"
-          >
+          <div className="mt-6 rounded-2xl border border-dashed border-border bg-secondary/20 p-5">
             <h2 className="font-heading text-lg">How booking works</h2>
             <ol className="mt-3 space-y-2.5 text-sm leading-6 text-muted-foreground">
               <li className="flex gap-2">
@@ -350,6 +348,10 @@ export function ServiceDetails({ serviceId }: { serviceId: string }) {
           </div>
         </aside>
       </div>
+
+      <section id="booking" className="mt-16 scroll-mt-24">
+        <BookingForm service={service} />
+      </section>
 
       {similar.length > 0 ? (
         <section className="mt-16 border-t pt-12">

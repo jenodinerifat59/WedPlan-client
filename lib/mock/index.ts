@@ -1,6 +1,7 @@
 import type {
   ApiListResponse,
   Booking,
+  CreateBookingInput,
   Role,
   Service,
   Transaction,
@@ -266,6 +267,74 @@ export async function mockRequest<T>(
 
   const method = (options.method ?? "GET").toUpperCase();
   const [rawPath] = path.split("?");
+
+  if (method === "POST" && rawPath === "/bookings") {
+    const body = (options.body ?? {}) as Partial<CreateBookingInput>;
+
+    if (
+      !body.serviceId ||
+      !body.eventDate ||
+      !body.eventLocation ||
+      !body.message
+    ) {
+      throw new MockApiError(
+        "Please provide the event date, location, and a short message.",
+        400,
+      );
+    }
+
+    const user = currentUser();
+
+    if (user.role === "admin") {
+      throw new MockApiError("Admins cannot create booking requests.", 403);
+    }
+
+    const service = services.find(
+      (item) => item.id === body.serviceId && item.status === "approved",
+    );
+
+    if (!service || !service.isActive) {
+      throw new MockApiError(
+        "This service is not available for booking right now.",
+        404,
+      );
+    }
+
+    if (service.vendorId === user.id) {
+      throw new MockApiError("You cannot book your own service.", 400);
+    }
+
+    const duplicate = bookings.some(
+      (booking) =>
+        booking.serviceId === service.id &&
+        booking.customerId === user.id &&
+        booking.eventDate === body.eventDate &&
+        booking.status === "pending",
+    );
+
+    if (duplicate) {
+      throw new MockApiError(
+        "You already have a pending request for this service on that date.",
+        409,
+      );
+    }
+
+    const booking: Booking = {
+      id: `b${Date.now()}`,
+      serviceId: service.id,
+      vendorId: service.vendorId,
+      customerId: user.id,
+      eventDate: body.eventDate,
+      eventLocation: body.eventLocation,
+      message: body.message,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+
+    bookings.unshift(booking);
+
+    return withRelations(booking) as T;
+  }
 
   if (method === "GET") {
     if (rawPath === "/services") {

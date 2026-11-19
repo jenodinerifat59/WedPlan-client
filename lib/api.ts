@@ -1,5 +1,7 @@
 import type {
   ApiListResponse,
+  Booking,
+  CreateBookingInput,
   Service,
   ServiceFilters,
 } from "@/lib/types";
@@ -292,5 +294,38 @@ export const servicesApi = {
   },
   get(id: string) {
     return apiFetch<Service>(`/services/${encodeURIComponent(id)}`);
+  },
+};
+
+export const bookingsApi = {
+  create(input: CreateBookingInput) {
+    return apiFetch<Booking>("/bookings", {
+      method: "POST",
+      body: input,
+      auth: true,
+    });
+  },
+  customerList() {
+    return apiFetch<ApiListResponse<Booking>>("/customer/bookings", {
+      auth: true,
+    });
+  },
+  cancel(id: string) {
+    return apiFetch<Booking>(
+      `/customer/bookings/${encodeURIComponent(id)}/cancel`,
+      { method: "PATCH", auth: true },
+    );
+  },
+  vendorList() {
+    return apiFetch<ApiListResponse<Booking>>("/vendor/bookings", {
+      auth: true,
+    });
+  },
+  vendorRespond(id: string, action: "accept" | "reject") {
+    return apiFetch<Booking>(`/vendor/bookings/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: { action },
+      auth: true,
+    });
   },
 };
