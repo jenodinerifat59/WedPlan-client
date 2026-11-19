@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 
 import "./globals.css";
 import { Footer } from "@/components/layout/footer";
+import { FooterGate } from "@/components/layout/footer-gate";
 import { Navbar } from "@/components/layout/navbar";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { AppToaster } from "@/components/providers/toaster";
@@ -86,7 +87,9 @@ export default function RootLayout({
             <div className="flex min-h-svh flex-col">
               <Navbar />
               <main className="flex-1">{children}</main>
-              <Footer />
+              <FooterGate>
+                <Footer />
+              </FooterGate>
             </div>
             <AppToaster />
           </AuthProvider>
