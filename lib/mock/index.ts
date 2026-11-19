@@ -2,6 +2,7 @@ import type {
   ApiListResponse,
   Booking,
   CreateBookingInput,
+  CreateServiceInput,
   Role,
   Service,
   Transaction,
@@ -351,6 +352,157 @@ export async function mockRequest<T>(
     };
 
     bookings.unshift(booking);
+
+    return withRelations(booking) as T;
+  }
+
+  if (method === "POST" && rawPath === "/vendor/services") {
+    const user = currentUser();
+
+    if (user.role !== "vendor") {
+      throw new MockApiError("Only vendors can create services.", 403);
+    }
+
+    const body = (options.body ?? {}) as Partial<CreateServiceInput>;
+
+    if (
+      !body.serviceName ||
+      !body.category ||
+      !body.description ||
+      !body.location ||
+      body.price === undefined ||
+      !body.images?.length
+    ) {
+      throw new MockApiError(
+        "Add a name, category, price, location, description, and at least one photo.",
+        400,
+      );
+    }
+
+    const service: Service = {
+      id: `s${Date.now()}`,
+      vendorId: user.id,
+      serviceName: body.serviceName,
+      category: body.category,
+      description: body.description,
+      price: Number(body.price),
+      location: body.location,
+      images: [...body.images],
+      status: "pending",
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    services.unshift(service);
+
+    return withVendor(service) as T;
+  }
+
+  const vendorServiceMatch = rawPath.match(
+    /^\/vendor\/services\/([^/]+)(\/availability)?$/,
+  );
+
+  if (vendorServiceMatch && (method === "PATCH" || method === "DELETE")) {
+    const id = decodeURIComponent(vendorServiceMatch[1]);
+    const availability = Boolean(vendorServiceMatch[2]);
+    const user = currentUser();
+    const index = services.findIndex(
+      (service) => service.id === id && service.vendorId === user.id,
+    );
+
+    if (index === -1) {
+      throw new MockApiError(
+        "This service does not exist or belongs to another vendor.",
+        404,
+      );
+    }
+
+    if (method === "DELETE") {
+      services.splice(index, 1);
+      return { success: true } as T;
+    }
+
+    const body = (options.body ?? {}) as Partial<CreateServiceInput> & {
+      isActive?: boolean;
+    };
+
+    if (availability) {
+      services[index] = {
+        ...services[index],
+        isActive: body.isActive === true,
+      };
+    } else {
+      services[index] = {
+        ...services[index],
+        ...(body.serviceName ? { serviceName: body.serviceName } : {}),
+        ...(body.category ? { category: body.category } : {}),
+        ...(body.description ? { description: body.description } : {}),
+        ...(body.price !== undefined ? { price: Number(body.price) } : {}),
+        ...(body.location ? { location: body.location } : {}),
+        ...(body.images ? { images: [...body.images] } : {}),
+      };
+    }
+
+    return withVendor(services[index]) as T;
+  }
+
+  const vendorBookingMatch = rawPath.match(/^\/vendor\/bookings\/([^/]+)$/);
+
+  if (method === "PATCH" && vendorBookingMatch) {
+    const id = decodeURIComponent(vendorBookingMatch[1]);
+    const user = currentUser();
+    const booking = bookings.find(
+      (item) => item.id === id && item.vendorId === user.id,
+    );
+
+    if (!booking) {
+      throw new MockApiError(
+        "This booking does not exist or belongs to another vendor.",
+        404,
+      );
+    }
+
+    if (booking.status !== "pending") {
+      throw new MockApiError(
+        "Only pending requests can be accepted or rejected.",
+        409,
+      );
+    }
+
+    const action = (options.body as { action?: string } | undefined)?.action;
+
+    if (action !== "accept" && action !== "reject") {
+      throw new MockApiError("Choose accept or reject.", 400);
+    }
+
+    booking.status = action === "accept" ? "accepted" : "rejected";
+
+    return withRelations(booking) as T;
+  }
+
+  const customerCancelMatch = rawPath.match(
+    /^\/customer\/bookings\/([^/]+)\/cancel$/,
+  );
+
+  if (method === "PATCH" && customerCancelMatch) {
+    const id = decodeURIComponent(customerCancelMatch[1]);
+    const user = currentUser();
+    const booking = bookings.find(
+      (item) => item.id === id && item.customerId === user.id,
+    );
+
+    if (!booking) {
+      throw new MockApiError(
+        "This booking does not exist or belongs to another customer.",
+        404,
+      );
+    }
+
+    if (booking.status !== "pending") {
+      throw new MockApiError("Only pending requests can be cancelled.", 409);
+    }
+
+    booking.status = "cancelled";
 
     return withRelations(booking) as T;
   }
