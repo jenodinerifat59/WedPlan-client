@@ -196,10 +196,25 @@ export async function apiFetch<T>(
   options: ApiRequestOptions = {},
 ): Promise<T> {
   if (USE_MOCK) {
-    throw new ApiClientError(
-      "Mock API mode is enabled, but the mock adapter is not installed yet.",
-      503,
-    );
+    const { mockRequest } = await import("@/lib/mock");
+
+    try {
+      return await mockRequest<T>(path, {
+        query: options.query,
+        method: options.method,
+        body: options.body,
+        auth: options.auth,
+      });
+    } catch (error) {
+      if (error && typeof error === "object" && "status" in error) {
+        const mockError = error as { message?: string; status?: number };
+        throw new ApiClientError(
+          mockError.message ?? "The mock request failed.",
+          Number(mockError.status ?? 500),
+        );
+      }
+      throw error;
+    }
   }
 
   const url = buildUrl(path, options.query);
