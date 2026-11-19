@@ -356,6 +356,13 @@ export async function mockRequest<T>(
     return withRelations(booking) as T;
   }
 
+  if (method === "POST" && rawPath === "/subscription/checkout") {
+    throw new MockApiError(
+      "Stripe checkout is not available in fixture mode. Configure the Express API and Stripe keys to test the upgrade flow.",
+      503,
+    );
+  }
+
   if (method === "POST" && rawPath === "/vendor/services") {
     const user = currentUser();
 

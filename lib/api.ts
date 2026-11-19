@@ -363,3 +363,12 @@ export const vendorServicesApi = {
     );
   },
 };
+
+export const subscriptionApi = {
+  checkout() {
+    return apiFetch<{ url: string }>("/subscription/checkout", {
+      method: "POST",
+      auth: true,
+    });
+  },
+};
