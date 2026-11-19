@@ -67,6 +67,25 @@ export function setMockRole(role: Role) {
   }
 }
 
+/**
+ * Returns the fixture user only when a mock role was explicitly chosen
+ * (for example after a dev-mode sign-in). Without that marker the app treats
+ * the visitor as signed out so guards still behave correctly.
+ */
+export function getMockSessionUser(): User | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const stored = window.localStorage.getItem("wedplan:mock-role");
+
+  if (stored === "customer" || stored === "vendor" || stored === "admin") {
+    return mockUsers[stored];
+  }
+
+  return null;
+}
+
 function currentUser(): User {
   return mockUsers[getMockRole()];
 }

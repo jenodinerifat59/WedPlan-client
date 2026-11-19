@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Gem,
   LayoutDashboard,
@@ -12,7 +12,7 @@ import {
   UserRound,
 } from "lucide-react";
 
-import { authClient } from "@/lib/auth-client";
+import { useAuth } from "@/components/providers/auth-provider";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -144,17 +144,10 @@ function UserMenu({
 }
 
 export function Navbar() {
-  const router = useRouter();
-  const { data: session, isPending } = authClient.useSession();
-  const user = session?.user as SessionUser | undefined;
+  const { user, isLoading, signOut } = useAuth();
 
   async function handleSignOut() {
-    try {
-      await authClient.signOut();
-    } finally {
-      router.push("/");
-      router.refresh();
-    }
+    await signOut();
   }
 
   return (
@@ -176,7 +169,7 @@ export function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          {isPending ? (
+          {isLoading ? (
             <div className="h-8 w-28 animate-pulse rounded-full bg-muted" />
           ) : user ? (
             <UserMenu user={user} onSignOut={handleSignOut} />
